@@ -232,6 +232,143 @@ class TriMesh(PointCloud):
         """
         return len(self.trilist)
 
+    @property
+    def n_tris(self):
+        r"""
+        The number of triangles in the triangle list.
+        :type: `int`
+        """
+        return len(self.trilist)
+
+    def heatmap(self, target_mesh, camera_settings=None, scalar_range=(0, 2),
+                scale_value=100, size=(1200, 1200),
+                type_cmap='hot', show_statistics=False, figure_id=None):
+        r"""
+        Creates a heatmap of euclidean differences between the current mesh and
+        the target meshh. If the two meshes have the same number of vertices, a
+        corresponence of them is considered.
+        If the meshes don't have the number of vertices, a KDTree is constructed
+        for the current and the difference of the closest points is calculated
+        Parameters
+        ----------
+        target_mesh :   `TriMesh`
+            A TriMesh whose points are used to find the differences(subtrahend)
+        camera_settings : `tuple'
+            A list of parameters for move, view and roll of camera,
+            default value = None, Oz axis normal to the scene
+        scalar_range : `tuple'
+            The scalar range of  the colorbar, default=(0,2)
+        scale_value : `int'
+            The scale value of the differences, to go to mm, default : 100
+        size : `Tuple'
+            Size of the window, default: (1200,1200)
+        type_cmap : `cmap'
+            Type of the colormap, default : 'hot', it can be:
+            'Accent','Blues', 'BrBG','BuGn','BuPu','CMRmap','Dark2', 'GnBu',
+            'Greens','Greys', 'OrRd', 'Oranges', 'PRGn', 'Paired', 'Pastel1',
+            'Pastel2', 'PiYG', 'PuBu', 'PuBuGn', 'PuOr', 'PuRd', 'Purples',
+            'RdBu', 'RdGy', 'RdPu', 'RdYlBu', 'RdYlGn', 'Reds', 'Set1', 'Set2',
+            'Set3', 'Spectral', 'Vega10', 'Vega20', 'Vega20b', 'Vega20c',
+            'Wistia', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd', 'afmhot', 'autumn',
+            'binary', 'black-white', 'blue-red', 'bone', 'brg', 'bwr','cool',
+            'coolwarm', 'copper', 'cubehelix', 'file', 'flag', 'gist_earth',
+            'gist_gray', 'gist_heat', 'gist_ncar', 'gist_rainbow', 'gist_stern',
+            'gist_yarg', 'gnuplot', 'gnuplot2', 'gray', 'hot', 'hsv', 'inferno',
+            'jet', 'magma', 'nipy_spectral', 'ocean', 'pink', 'plasma', 'prism',
+            'rainbow', 'seismic', 'spectral' 'spring', 'summer', 'terrain',
+            'viridis', 'winter'
+        show_statistics : `bool'
+            If statistics like mean and max error will be shown in the window,
+            default:False
+        Returns
+        -------
+        v : `Scene`
+            Handle to  mayavi scene
+        scaled_distances_between_meshes : `np.array'
+            An array with the scaled distances between the
+            correspoding vertices.
+        Raises
+        ------
+        ValueError
+        """
+        from mayavi import mlab
+        from scipy.spatial import cKDTree
+        from matplotlib import cm
+
+        source_mesh = self
+        source_n_vertices = source_mesh.points.shape[0]
+        target_mesh_n_vertices = target_mesh.points.shape[0]
+
+        if not source_n_vertices == target_mesh_n_vertices:
+            first_part_string = 'Source mesh has {} vertices while target mesh has {}'.format(source_n_vertices,
+                                                                                              target_mesh_n_vertices)
+            print(first_part_string)
+            subject = source_mesh.points
+            template = target_mesh
+            X = template.points
+
+            tree = cKDTree(X)
+            dist, indx = tree.query(subject, k=1)
+
+            target_mesh = TriMesh(X[indx], source_mesh.trilist)
+
+        if figure_id is None:
+            if hasattr(self, 'path'):
+                source_name = self.path.stem
+            else:
+                source_name = 'Source'
+            if hasattr(target_mesh, 'path'):
+                target_name = target_mesh.path.stem
+            else:
+                target_name = 'Target'
+            figure_name = 'Heatmap between {} and {}'.format(source_name,
+                                                             target_name)
+        else:
+            figure_name = figure_id
+
+        v = mlab.figure(figure=figure_name, size=size,
+                        bgcolor=(1, 1, 1), fgcolor=(0, 0, 0))
+
+        diff = (source_mesh.points-target_mesh.points)**2
+        distances_between_meshes = np.sqrt(diff.sum(axis=1))
+        scaled_distances_between_meshes = distances_between_meshes*scale_value
+
+        # to speed things up
+        # v.scene.disable_render = True
+
+        src = mlab.pipeline.triangular_mesh_source(source_mesh.points[:, 0],
+                                                   source_mesh.points[:, 1],
+                                                   source_mesh.points[:, 2],
+                                                   source_mesh.trilist,
+                                                   scalars=scaled_distances_between_meshes)
+
+        surf = mlab.pipeline.surface(src, colormap=type_cmap)
+
+        # When font size bug resolved, uncomment
+        # cb = mlab.colorbar(title='Distances in mm',
+        # orientation='vertical', nb_labels=5)
+        # cb.title_text_property.font_size = 20
+        # cb.label_text_property.font_family = 'times'
+        # cb.label_text_property.font_size=10
+        cb = mlab.colorbar(orientation='vertical', nb_labels=5)
+        cb.data_range = scalar_range
+
+        cb.scalar_bar_representation.position = [0.8, 0.15]
+        cb.scalar_bar_representation.position2 = [0.15, 0.7]
+        text = mlab.text(0.8, 0.85, 'Distances in mm')
+        text.width = 0.20
+        if show_statistics:
+            text2 = mlab.text(0.5, 0.02,
+                              'Mean error {:.3}mm \nMax error {:.3}mm \
+                          '.format(scaled_distances_between_meshes.mean(),
+                                   scaled_distances_between_meshes.max()))
+            text2.width = 0.20
+        surf.module_manager.scalar_lut_manager.reverse_lut = True
+        if camera_settings is None:
+            mlab.gcf().scene.z_plus_view()
+
+        return v, scaled_distances_between_meshes
+
     def tojson(self):
         r"""
         Convert this :map:`TriMesh` to a dictionary representation suitable
