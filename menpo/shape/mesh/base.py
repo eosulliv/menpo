@@ -232,14 +232,6 @@ class TriMesh(PointCloud):
         """
         return len(self.trilist)
 
-    @property
-    def n_tris(self):
-        r"""
-        The number of triangles in the triangle list.
-        :type: `int`
-        """
-        return len(self.trilist)
-
     def heatmap(self, target_mesh, camera_settings=None, scalar_range=(0, 2),
                 scale_value=100, size=(1200, 1200),
                 type_cmap='hot', show_statistics=False, figure_id=None):

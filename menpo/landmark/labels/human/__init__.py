@@ -1,7 +1,8 @@
 from .ear import (
     ears_ibug_110_to_ears_ibug_110,
     ears_ibug_110_to_ears_ibug_55,
-    ears_ibug_55_to_ears_ibug_55)
+    ears_ibug_55_to_ears_ibug_55,
+    ears_ibug_55_to_ears_ibug_14)
 from .face import (
     tongue_ibug_19_to_tongue_ibug_19,
     eye_ibug_close_17_to_eye_ibug_close_17,

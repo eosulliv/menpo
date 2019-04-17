@@ -1,5 +1,6 @@
 from __future__ import division
 import numpy as np
+from pathlib import Path
 
 from menpo.base import doc_inherit, name_of_callable
 from menpo.math import pca, pcacov, ipca, as_matrix
@@ -1464,3 +1465,83 @@ class PCAModel(VectorizableBackedModel, PCAVectorModel):
             self.noise_variance_ratio(), self.n_components,
             self.components.shape)
         return str_out
+
+    def render_components(self,  export_path=None, filename='',
+                          size=(600, 600), list_weights=[-2, 2],
+                          list_components=np.arange(5),
+                          bgcolor=(1, 1, 1),
+                          camera_settings=None,
+                          mesh_color=(.5, .5, .5)):
+        r"""
+        Render and save various components of the  model
+        Parameters
+        ----------
+        export_path : str or Path where the images will be saved,
+                      default: current directory
+        filename : str, the prefix of the filename,
+                   default: ''
+        size: tuple of two ints, the size of the image,
+              default:(600, 600)
+        list_weights: list of weights that std will be multipied with
+                      default: [-2, 2]
+        list_components : int, list or ndarray of the components to be rendered
+                         default: np.arange(5)
+        bgcolor : the background color of the rendering
+        camera_settings : camera settings of the rendering
+        mesh_color : tuple of three floats between 0-1 that defines mesh color
+        """
+        try:
+            from mayavi import mlab
+        except ImportError:
+            print('Cannot import mlab')
+            return 1
+
+        if export_path is None:
+            export_path = Path.cwd()
+        elif isinstance(export_path, str):
+            export_path = Path(export_path)
+
+        if not export_path.exists():
+            try:
+                export_path.mkdir(parents=True)
+            except OSError:
+                print('Cannot create directory')
+                return -1
+
+        fig = mlab.figure(bgcolor=bgcolor, size=size)
+        if camera_settings is not None:
+            mlab.move(*camera_settings[0])
+            mlab.view(*camera_settings[1])
+            mlab.roll(camera_settings[2])
+        else:
+            fig.scene.z_plus_view()
+
+        if isinstance(list_weights, int):
+            list_weights = [list_weights]
+
+        if isinstance(list_components, int):
+            list_components = [list_components]
+        list_components = np.asarray(list_components)
+        are_components = list_components < self.n_components
+        components_to_be_rendered = list_components[are_components]
+        for not_exist_component in list_components[~are_components]:
+            print('Component {} does not exist'.format(not_exist_component))
+
+        mesh = self.mean()
+        s = mlab.triangular_mesh(mesh.points[:, 0], mesh.points[:, 1],
+                                 mesh.points[:, 2], mesh.trilist,
+                                 color=mesh_color)
+        # s.actor.actor.rotate_y(30)
+        
+        mlab.savefig(str(export_path / 'Mean face.{}'.format('png')))
+        for component in components_to_be_rendered:
+            parameters = np.zeros(component+1)
+            std = self.eigenvalues[component] ** 0.5
+            for weight in list_weights:
+                parameters[component] = std*weight
+                s.mlab_source.points = self.instance(parameters).points
+                full_filename = '{}_{}_{}.{}'.format(filename,
+                                                     component,
+                                                     weight,
+                                                     'png')
+                mlab.savefig(str(export_path / full_filename))
