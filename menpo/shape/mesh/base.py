@@ -1,6 +1,7 @@
 # coding=utf-8
 from collections import Counter
 import numpy as np
+from scipy.sparse import csr_matrix, diags, identity
 from warnings import warn
 
 from .. import PointCloud
@@ -69,6 +70,115 @@ def trilist_to_adjacency_array(trilist):
     return np.concatenate([trilist[:, :2],
                            trilist[:, 1:],
                            wrap_around_adj])
+
+
+def trilist_to_adjacency_array_single_edge(trilist):
+    r"""
+    Turn an ``(M, 3)`` trilist into an adjacency array suitable for building
+    graphs. Each edge is represented only once is the adjacency array.
+    Assumes the graph is undirected.
+
+    Parameters
+    ----------
+    trilist : ``(M, 3)`` `ndarray`
+        The trilist to transform into an adjacency array
+
+    Returns
+    -------
+    adj_array : ``(M * 3, 2)`` `ndarray`
+        The adjacency array including the edges that complete the triangle
+        which are implicit in a trilist.
+    """
+    adjacency_matrix = trilist_to_adjacency_array(trilist)
+    adjacency_matrix.sort(axis=1)
+    return np.unique(adjacency_matrix, axis=0)
+
+
+def trilist_to_adjacency_matrix(trilist):
+    r"""
+    Converts a single edge array to a symmetric adjacency matrix.
+
+    Parameters
+    ----------
+    edges : ``(n_edges, 2, )`` `ndarray` or ``None``
+        The `ndarray` of edges, i.e. all the pairs of vertices that are
+        connected with an edge.
+    n_vertices : `int`
+        The total number of vertices, assuming that the numbering of
+        vertices starts from ``0``. ``edges`` and ``n_vertices`` can be
+        defined in a way to set isolated vertices.
+
+    Returns
+    -------
+    adjacency_matrix : ``(n_vertices, n_vertices, )`` `csr_matrix`
+        The adjacency matrix of the graph in which the rows represent source
+        vertices and columns represent destination vertices.
+    """
+    edges = trilist_to_adjacency_array_single_edge(trilist)
+    n_vertices = np.unique(trilist).shape[0]
+
+    if isinstance(edges, list):
+        edges = np.array(edges)
+    if edges is None or edges.shape[0] == 0:
+        # create adjacency with zeros
+        return csr_matrix((n_vertices, n_vertices), dtype=np.int)
+    else:
+        rows = np.hstack((edges[:, 0], edges[:, 1]))
+        cols = np.hstack((edges[:, 1], edges[:, 0]))
+        return csr_matrix(([1] * rows.shape[0], (rows, cols)),
+                          shape=(n_vertices, n_vertices))
+
+
+def trilist_to_degree_matrix(trilist):
+    r"""
+    Turn an ``(M, 3)`` trilist into a degree matrix using the adjacency matrix.
+
+    Parameters
+    ----------
+    trilist : ``(M, 3)`` `ndarray`
+        The trilist to transform into an adjacency array
+
+    Returns
+    -------
+    degree_array : ``(n_vertices, n_vertices, )`` `diags`
+        The daigonal degree matrix.
+    """
+    adjacency_matrix = trilist_to_adjacency_matrix(trilist)
+
+    d = adjacency_matrix.sum(axis=0)
+    return diags(d.A.squeeze(), 0)
+
+
+def trilist_to_laplacian_matrix(trilist, normalised=False):
+    r"""
+    Converts a single edge array to a symmetric adjacency matrix.
+
+    Parameters
+    ----------
+    edges : ``(n_edges, 2, )`` `ndarray` or ``None``
+        The `ndarray` of edges, i.e. all the pairs of vertices that are
+        connected with an edge.
+    normalised: `bool`
+        Return a normalised laplacian when True, and an ordinary laplacian otherwise
+
+    Returns
+    -------
+    adjacency_matrix : ``(n_vertices, n_vertices, )`` `csr_matrix`
+        The adjacency matrix of the graph in which the rows represent source
+        vertices and columns represent destination vertices.
+    """
+    A = trilist_to_adjacency_matrix(trilist)
+    d = A.sum(axis=0)
+
+    if not normalised:
+        D = diags(d.A.squeeze(), 0)
+        return D - A
+    else:
+        d = 1/np.sqrt(d)
+        D = diags(d.A.squeeze(), 0)
+        I = identity(d.size, dtype=A.dtype)
+        return I - D*A*D
+
 
 
 def subsampled_grid_triangulation(shape, subsampling=1):

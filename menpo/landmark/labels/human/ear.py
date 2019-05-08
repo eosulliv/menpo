@@ -205,3 +205,44 @@ def ears_ibug_55_to_ears_ibug_14(pcloud):
         pcloud.points[ind], all_connectivity, mapping)
 
     return new_pcloud, mapping
+
+
+@labeller_func(group_label='ear_ibug_14')
+def ears_ibug_14_to_ears_ibug_14(pcloud):
+    r"""
+    Apply the IBUG 14-point semantic labels for a single ears.
+    
+    The semantic labels applied are as follows:
+      - outer_helix
+      - inner_helix
+      - tragus_concha_inf_crus
+    
+    References
+    ----------
+    .. [2] http://ibug.doc.ic.ac.uk/resources/ibug-ears/
+    """
+    from menpo.shape import LabelledPointUndirectedGraph
+
+    n_expected_points = 14
+    validate_input(pcloud, n_expected_points)
+
+    outer_helix_indices = np.arange(0, 6)
+    inner_helix_indices = np.arange(6, 10)
+    tragus_concha_inf_crus_indices = np.arange(10, 14)
+    
+    outer_helix_connectivity = connectivity_from_array(outer_helix_indices)
+    inner_helix_connectivity = connectivity_from_array(inner_helix_indices)
+    tragus_concha_inf_crus_connectivity = connectivity_from_array(tragus_concha_inf_crus_indices)
+
+    all_connectivity = np.vstack([outer_helix_connectivity, inner_helix_connectivity,
+                                  tragus_concha_inf_crus_connectivity])
+
+    mapping = OrderedDict()
+    mapping['outer_helix'] = outer_helix_indices
+    mapping['inner_helix'] = inner_helix_indices
+    mapping['tragus_concha_inf_crus'] = tragus_concha_inf_crus_indices
+
+    new_pcloud = LabelledPointUndirectedGraph.init_from_indices_mapping(
+        pcloud.points, all_connectivity, mapping)
+
+    return new_pcloud, mapping

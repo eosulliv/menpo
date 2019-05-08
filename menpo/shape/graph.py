@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csgraph, csr_matrix, triu
+from scipy.sparse import csgraph, csr_matrix, diags, identity, triu
 
 from . import PointCloud
 
@@ -3343,7 +3343,7 @@ def _convert_edges_to_adjacency_matrix(edges, n_vertices):
 
 def _convert_edges_to_symmetric_adjacency_matrix(edges, n_vertices):
     r"""
-    Converts an edges array to an adjacency matrix.
+    Converts a single edge array to a symmetric adjacency matrix.
 
     Parameters
     ----------
@@ -3365,11 +3365,55 @@ def _convert_edges_to_symmetric_adjacency_matrix(edges, n_vertices):
         edges = np.array(edges)
     if edges is None or edges.shape[0] == 0:
         # create adjacency with zeros
-        adjacency_matrix = csr_matrix((n_vertices, n_vertices), dtype=np.int)
+        return csr_matrix((n_vertices, n_vertices), dtype=np.int)
     else:
         rows = np.hstack((edges[:, 0], edges[:, 1]))
         cols = np.hstack((edges[:, 1], edges[:, 0]))
-        adjacency_matrix = csr_matrix(([1] * rows.shape[0], (rows, cols)),
+        return csr_matrix(([1] * rows.shape[0], (rows, cols)),
                                       shape=(n_vertices, n_vertices))
-        adjacency_matrix[adjacency_matrix.nonzero()] = 1
-    return adjacency_matrix
+
+
+def _convert_adjacency_matrix_to_degree_matrix(adjacency_matrix):
+    r"""
+    Converts an edges array to a degree matrix. Assumes an unweighted matrix.
+
+    Parameters
+    ----------
+    adjacency_matrix : ``(n_vertices, n_vertices,)`` `ndarray`
+        The adjacency matrix.
+
+    Returns
+    -------
+    degree_matrix : ``(n_vertices, n_vertices, )`` `csr_matrix`
+        The degree matrix of the graph in which the diagonals represent the
+        number of edges attached to each vertex.
+    """
+    return diags(adjacency_matrix.sum(axis=0).A.squeeze(), 0)
+
+
+def _convert_adjacency_matrix_to_laplacian_matrix(adjacency_matrix, normalised=False):
+    r"""
+    Return the Laplacian for an adjacency matrix.
+
+    Parameters
+    ----------
+    adjacency_matrix : ``(n_vertices, n_vertices,)`` `ndarray`
+        The adjacency matrix.
+    normalised: `bool`
+        Return a normalised laplacian when True, and an ordinary laplacian otherwise
+
+    Returns
+    -------
+    degree_matrix : ``(n_vertices, n_vertices, )`` `csr_matrix`
+        The degree matrix of the graph in which the diagonals represent the
+        number of edges attached to each vertex.
+    """
+    if not normalised:
+        D = _convert_adjacency_matrix_to_degree_matrix(adjacency_matrix)
+        return D - adjacency_matrix
+    else:
+        d = adjacency_matrix.sum(axis=0)
+        d = 1/np.sqrt(d)
+        D = diags(d.A.squeeze(), 0)
+        I = identity(d.size, dtype=adjacency_matrix.dtype)
+        return I - D*adjacency_matrix*D
