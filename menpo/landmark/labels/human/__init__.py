@@ -3,7 +3,10 @@ from .ear import (
     ears_ibug_110_to_ears_ibug_55,
     ears_ibug_55_to_ears_ibug_55,
     ears_ibug_55_to_face_ibug_55_trimesh,
+    ears_ibug_55_to_ears_ibug_50,
     ears_ibug_55_to_ears_ibug_14,
+    ears_ibug_50_to_ears_ibug_50,
+    ears_ibug_50_to_ears_ibug_14,
     ears_ibug_14_to_ears_ibug_14)
 from .face import (
     tongue_ibug_19_to_tongue_ibug_19,

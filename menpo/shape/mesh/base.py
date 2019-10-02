@@ -180,7 +180,6 @@ def trilist_to_laplacian_matrix(trilist, normalised=False):
         return I - D*A*D
 
 
-
 def subsampled_grid_triangulation(shape, subsampling=1):
     r"""
     Create a triangulation based on a regular grid. This will be a right
@@ -227,6 +226,32 @@ def subsampled_grid_triangulation(shape, subsampling=1):
          indices_grid[:-1, 1:].ravel()[..., None]], axis=-1)
 
     return np.vstack([tri_down_left, tri_up_right]).astype(np.uint32)
+
+
+def mirror_mesh(mesh, axis=0):
+    r"""
+    Mirror a TriMesh about the specified axis.
+
+    Parameters
+    ----------
+    mesh : ``TriMesh``
+        The mesh to be mirrored
+    axis: ``int``
+        The axis about which to mirror the mesh.
+        0: x axis, 1: y axis, 2: z axis
+
+    Returns
+    -------
+    mirror_mesh : ``TriMesh``
+        The mirrored TriMesh
+    """
+    mirror_mesh = mesh.copy()
+    mirror_mesh.points[:,axis] *= -1
+
+    # Flip the trilist to maintain correct triangle face orientations
+    mirror_mesh.trilist[:,1], mirror_mesh.trilist[:,2] = \
+        mirror_mesh.trilist[:,2].copy(), mirror_mesh.trilist[:,1].copy()
+    return mirror_mesh
 
 
 class TriMesh(PointCloud):
