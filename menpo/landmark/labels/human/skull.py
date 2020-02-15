@@ -42,8 +42,10 @@ def skull_gosh_50_to_skull_gosh_50(pcloud):
 
     midline_connectivity = connectivity_from_array(midline_indices)
     max_connectivity = connectivity_from_array(max_indices)
-    leye_connectivity = connectivity_from_array(leye_indices, close_loop=True)
-    reye_connectivity = connectivity_from_array(reye_indices, close_loop=True)
+    eye_connectivity = np.vstack([
+        connectivity_from_array(leye_indices, close_loop=True),
+        connectivity_from_array(reye_indices, close_loop=True)
+    ])
     mand_connectivity = connectivity_from_array(mand_indices)
     mid_skull_connectivity = connectivity_from_array(mid_skull_indices)
     inner_mand_connectivity = connectivity_from_array(inner_mand_indices)
@@ -54,16 +56,15 @@ def skull_gosh_50_to_skull_gosh_50(pcloud):
     
 
     all_connectivity = np.vstack([
-        midline_connectivity, max_connectivity, leye_connectivity,
-        reye_connectivity, mand_connectivity, mid_skull_connectivity,
+        midline_connectivity, max_connectivity, eye_connectivity,
+        mand_connectivity, mid_skull_connectivity,
         inner_mand_connectivity, skull_base_connectivity
     ])
 
     mapping = OrderedDict()
     mapping['midline'] = midline_indices
     mapping['maxilla'] = max_indices
-    mapping['left_eye'] = leye_indices
-    mapping['right_eye'] = reye_indices
+    mapping['orbit'] = np.hstack([leye_indices, reye_indices])
     mapping['mandible'] = mand_indices
     mapping['midline_skull'] = mid_skull_indices
     mapping['inner_mandible'] = inner_mand_indices
@@ -153,8 +154,7 @@ def skull_gosh_44_to_skull_gosh_44(pcloud):
 
       - midline
       - maxilla
-      - left_eye
-      - right_eye
+      - orbits
       - mandible
       - midline_skull
       - inner_mandible
@@ -178,30 +178,30 @@ def skull_gosh_44_to_skull_gosh_44(pcloud):
 
     midline_connectivity = connectivity_from_array(midline_indices)
     max_connectivity = connectivity_from_array(max_indices)
-    leye_connectivity = connectivity_from_array(leye_indices, close_loop=True)
-    reye_connectivity = connectivity_from_array(reye_indices, close_loop=True)
+    eye_connectivity = np.vstack([
+        connectivity_from_array(leye_indices, close_loop=True),
+        connectivity_from_array(reye_indices, close_loop=True)
+    ])
     mand_connectivity = np.vstack([
         connectivity_from_array(lmand_indices),
-        connectivity_from_array(rmand_indices)
+        connectivity_from_array(rmand_indices),
+         connectivity_from_array(inner_mand_indices)
     ])
-    inner_mand_connectivity = connectivity_from_array(inner_mand_indices)
     skull_base_connectivity = np.vstack([
         connectivity_from_array(lskull_base_indices),
         connectivity_from_array(rskull_base_indices)
     ])
 
     all_connectivity = np.vstack([
-        midline_connectivity, max_connectivity, leye_connectivity, reye_connectivity,
-        mand_connectivity, inner_mand_connectivity, skull_base_connectivity
+        midline_connectivity, max_connectivity, eye_connectivity,
+        mand_connectivity, skull_base_connectivity
     ])
 
     mapping = OrderedDict()
     mapping['midline'] = midline_indices
     mapping['maxilla'] = max_indices
-    mapping['left_eye'] = leye_indices
-    mapping['right_eye'] = reye_indices
-    mapping['mandible'] = np.hstack((lmand_indices, rmand_indices))
-    mapping['inner_mandible'] = inner_mand_indices
+    mapping['orbits'] = np.hstack([leye_indices, reye_indices])
+    mapping['mandible'] = np.hstack((lmand_indices, rmand_indices, inner_mand_indices))
     mapping['skull_base'] = np.hstack((lskull_base_indices, rskull_base_indices))
 
     new_pcloud = LabelledPointUndirectedGraph.init_from_indices_mapping(
